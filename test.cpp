@@ -1,10 +1,10 @@
+#include <cstdio>
+#include <thread>
 #include "Halide.h"
 #include "clock.h"
 #include "opencv2/opencv.hpp"
-#include <thread>
-#include <cstdio>
 
-double tick(const char* name) {
+double tick(const char *name) {
     static double t_old = 0;
     double t_new = current_time();
     double dt = t_new - t_old;
@@ -31,8 +31,6 @@ int main() {
     half_interleaved.output_buffer().dim(0).set_stride(img.channels());
     half_interleaved.output_buffer().dim(2).set_stride(1);
 
-    half_interleaved.reorder(c, x, y)
-        .vectorize(c, 3);
     half_interleaved.compile_jit(target);
 
     // planar
@@ -47,24 +45,21 @@ int main() {
     // comparing to naive multi-threading
     auto pixel = img.cols * img.rows * 3;
     cv::Mat img_out2(img.size(), CV_8UC3);
-    uchar* out_p = img_out2.data;
-    uchar* in_p = img.data;
+    uchar *out_p = img_out2.data;
+    uchar *in_p = img.data;
     std::vector<std::thread> threads(4);
-    for (auto i = 0; i < 10000; ++i)
-    {
-        for (auto th = 0; th < threads.size(); ++th)
-        {
-            threads[th] = std::thread([&](int start, int end)
-            {
-                for (auto p = start; p < end; ++p)
-                {
-                    out_p[p] = in_p[p] * 0.5f + 0.5f;
-                }
-            },
-                                     th * pixel / threads.size(),
+    for (auto i = 0; i < 10000; ++i) {
+        for (auto th = 0; th < threads.size(); ++th) {
+            threads[th] = std::thread(
+                [&](int start, int end) {
+                    for (auto p = start; p < end; ++p) {
+                        out_p[p] = in_p[p] * 0.5f + 0.5f;
+                    }
+                },
+                th * pixel / threads.size(),
                 (th + 1) * pixel / threads.size());
         }
-        for (auto& th:threads)
+        for (auto &th : threads)
             if (th.joinable())
                 th.join();
     }
@@ -85,8 +80,7 @@ int main() {
     // comparing to opencv
     cv::Mat img_f(img.size(), CV_32FC3);
     cv::Mat img_out(img.size(), CV_8UC3);
-    for (int i = 0; i < 10000; ++i)
-    {
+    for (int i = 0; i < 10000; ++i) {
         img.convertTo(img_f, CV_32FC3);
         img_f *= 0.5f;
         img_f.convertTo(img_out, CV_8UC3);
