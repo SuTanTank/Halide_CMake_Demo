@@ -18,10 +18,9 @@ double tick(const char *name) {
 int main() {
     using namespace Halide;
     auto target = get_target_from_environment();
-    //target.set_feature(Target::Feature::AVX2);
 
     // read image to cv::Mat
-    auto img = cv::imread("007.jpg");
+    auto img = cv::imread("rgb.png");
     if (img.empty())
         return 1;
 
@@ -119,6 +118,6 @@ int main() {
         cv::waitKey(100);
     }
     printf("finished.\n");
-    
+
     return 0;
 }
