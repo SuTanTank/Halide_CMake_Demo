@@ -35,11 +35,29 @@ int main() {
 
     half_interleaved.output_buffer().dim(0).set_stride(img.channels());
     half_interleaved.output_buffer().dim(2).set_stride(1);
-    // Var xc("xc");
     half_interleaved.parallel(y);
 
     half_interleaved.print_loop_nest();
     half_interleaved.compile_jit(target);
+
+    // interleaved ver.2
+    Func to_planar("to_planar");
+    to_planar(x, y, c) = input1(x, y, c);
+    to_planar.reorder(c, x, y).unroll(c);
+    to_planar.vectorize(x, 16);
+    to_planar.compute_root();
+
+    Func half("half");
+    half(x, y, c) = cast<uint8_t>(cast<float>(to_planar(x, y, c)) * 0.5f);
+    
+
+    Func to_interleaved("to_interleaved");
+    to_interleaved(x, y, c) = half(x, y, c);
+    to_interleaved.output_buffer().dim(0).set_stride(3).dim(2).set_stride(1).set_bounds(0, 3);
+    to_interleaved.reorder(c, x, y).bound(c, 0, 3).unroll(c);
+    to_interleaved.vectorize(x, 16);
+    to_interleaved.compile_to_lowered_stmt("rgb_interleave_fast.stmt", to_interleaved.infer_arguments());
+    to_interleaved.print_loop_nest();
 
     // planar
     Func half_planar("planar");
@@ -97,6 +115,17 @@ int main() {
             half_planar.realize(output2);
         tick("half_planar");
         cv::Mat out_mat(img.rows, img.cols, img.type(), output2.data());
+        cv::imshow("out", out_mat);
+        cv::waitKey(100);
+    }
+    {
+        auto output3 = Buffer<uint8_t>::make_interleaved(img.cols, img.rows, img.channels(), "output");
+        to_interleaved.realize(output3);
+        tick(NULL);
+        for (int i = 0; i < 1000; ++i)
+            to_interleaved.realize(output3);
+        tick("half_convert");
+        cv::Mat out_mat(img.rows, img.cols, img.type(), output3.data());
         cv::imshow("out", out_mat);
         cv::waitKey(100);
     }
