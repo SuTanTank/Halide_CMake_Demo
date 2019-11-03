@@ -37,10 +37,9 @@ target_include_directories(generator PRIVATE)
 
 set(output_dir ${CMAKE_CURRENT_BINARY_DIR})
 set(RUN_WITHOUT_LEAKCHECK ${CMAKE_COMMAND} -E env "ASAN_OPTIONS=detect_leaks=0")
-set (COMBINED_LIB "halide_lib${CMAKE_STATIC_LIBRARY_SUFFIX}")
+set (COMBINED_LIB "${output_dir}/halide_lib${CMAKE_STATIC_LIBRARY_SUFFIX}")
 if (WIN32)
-add_custom_command(OUTPUT ${COMBINED_LIB}
-                    DEPENDS generator
+add_custom_command(TARGET generator POST_BUILD
                     COMMAND ${RUN_WITHOUT_LEAKCHECK} $<TARGET_FILE:generator>
                     COMMAND lib.exe /out:halide_lib.lib *.lib
                     WORKING_DIRECTORY "${output_dir}"
@@ -53,18 +52,14 @@ else()
 
 endif()
 
-add_custom_target(exec_generate
-                    DEPENDS ${COMBINED_LIB})
-add_executable(generator_test
-                 generator_test.cpp)
-add_dependencies(generator_test
-                   exec_generate)
+# define a library use the generated lib and headers
+add_library(custom_lib INTERFACE IMPORTED)
+target_include_directories(custom_lib INTERFACE ${output_dir})
+target_link_libraries(custom_lib INTERFACE ${COMBINED_LIB})
 
-add_library(custom_lib STATIC IMPORTED)
-set_target_properties(custom_lib PROPERTIES
-  INTERFACE_INCLUDE_DIRECTORIES ${output_dir}
-  IMPORTED_LOCATION ${output_dir}/${COMBINED_LIB}
-)
+add_executable(generator_test
+generator_test.cpp)
+add_dependencies(generator_test generator)
 target_link_libraries(generator_test PRIVATE ${OpenCV_LIBS})
 target_link_libraries(generator_test PRIVATE custom_lib)
 target_include_directories(generator_test PRIVATE ${output_dir})
