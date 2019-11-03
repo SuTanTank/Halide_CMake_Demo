@@ -18,11 +18,15 @@ double tick(const char *name) {
 int main() {
     using namespace Halide;
     auto target = get_target_from_environment();
+    printf("%s\n", target.to_string().c_str());
 
     // read image to cv::Mat
     auto img = cv::imread("rgb.png");
     if (img.empty())
         return 1;
+
+    // cv::resize(img, img, cv::Size(16, 10));
+    int repeat = 1000;
 
     Var x("x"), y("y"), c("c");
     Var xo, yo, xi, yi, xytile;
@@ -35,8 +39,10 @@ int main() {
 
     half_interleaved.output_buffer().dim(0).set_stride(img.channels());
     half_interleaved.output_buffer().dim(2).set_stride(1);
+
     half_interleaved.parallel(y);
 
+    // half_interleaved.trace_stores();
     half_interleaved.print_loop_nest();
     half_interleaved.compile_jit(target);
 
@@ -49,7 +55,8 @@ int main() {
 
     Func half("half");
     half(x, y, c) = cast<uint8_t>(cast<float>(to_planar(x, y, c)) * 0.5f);
-    
+    // half.trace_stores();
+    half.compute_root();
 
     Func to_interleaved("to_interleaved");
     to_interleaved(x, y, c) = half(x, y, c);
@@ -65,6 +72,7 @@ int main() {
     half_planar(x, y) = cast<uint8_t>(cast<float>(input2(x, y)) * 0.5f);
     half_planar.parallel(y);
     half_planar.print_loop_nest();
+    // half_planar.trace_stores();
     half_planar.compile_jit(target);
     // testing
     printf("TEST:\n");
@@ -77,12 +85,13 @@ int main() {
         uchar *in_p = img.data;
         std::vector<std::thread> threads(8);
         tick(NULL);
-        for (auto i = 0; i < 1000; ++i) {
+        for (auto i = 0; i < repeat; ++i) {
             for (auto th = 0; th < threads.size(); ++th) {
                 threads[th] = std::thread(
                     [&](int start, int end) {
                         for (auto p = start; p < end; ++p) {
                             out_p[p] = in_p[p] * 0.5f + 0.5f;
+                            // out_p[p] = in_p[p] / 2;
                         }
                     },
                     th * pixel / threads.size(),
@@ -94,57 +103,68 @@ int main() {
         }
         tick("std");
         cv::imshow("out", out_mat);
-        cv::waitKey(100);
+        cv::waitKey(1000);
     }
     {
         auto output1 = Buffer<uint8_t>::make_interleaved(img.cols, img.rows, img.channels(), "output");
         half_interleaved.realize(output1);
         tick(NULL);
-        for (int i = 0; i < 1000; ++i)
+        for (int i = 0; i < repeat; ++i)
             half_interleaved.realize(output1);
         tick("half_interleaved");
         cv::Mat out_mat(img.rows, img.cols, img.type(), output1.data());
         cv::imshow("out", out_mat);
-        cv::waitKey(100);
+        cv::waitKey(1000);
     }
     {
         auto output2 = Buffer<uint8_t>(img.cols * 3, img.rows, "output");
         half_planar.realize(output2);
         tick(NULL);
-        for (int i = 0; i < 1000; ++i)
+        for (int i = 0; i < repeat; ++i)
             half_planar.realize(output2);
         tick("half_planar");
         cv::Mat out_mat(img.rows, img.cols, img.type(), output2.data());
         cv::imshow("out", out_mat);
-        cv::waitKey(100);
+        cv::waitKey(1000);
     }
     {
         auto output3 = Buffer<uint8_t>::make_interleaved(img.cols, img.rows, img.channels(), "output");
         to_interleaved.realize(output3);
         tick(NULL);
-        for (int i = 0; i < 1000; ++i)
+        for (int i = 0; i < repeat; ++i)
             to_interleaved.realize(output3);
         tick("half_convert");
         cv::Mat out_mat(img.rows, img.cols, img.type(), output3.data());
         cv::imshow("out", out_mat);
-        cv::waitKey(100);
+        cv::waitKey(1000);
     }
     {
         // comparing to opencv
         cv::Mat img_f(img.size(), CV_32FC3);
-        cv::Mat out_mat(img.size(), CV_8UC3);
+        cv::Mat out_mat(img.size(), CV_8UC3, cv::Scalar{0, 0, 0});
         img.convertTo(img_f, CV_32FC3);
         img_f *= 0.5f;
         img_f.convertTo(out_mat, CV_8UC3);
         tick(NULL);
-        for (int i = 0; i < 1000; ++i) {
+        for (int i = 0; i < repeat; ++i) {
             img.convertTo(img_f, CV_32FC3);
             img_f *= 0.5f;
             img_f.convertTo(out_mat, CV_8UC3);
         }
         tick("OpenCV");
         cv::imshow("out", out_mat);
-        cv::waitKey(100);
+        cv::waitKey(1000);
+    }
+    {
+        // comparing to opencv, mutiply without convertion
+        cv::Mat out_mat(img.size(), CV_8UC3);
+        tick(NULL);
+        for (int i = 0; i < repeat; ++i) {
+            cv::multiply(img, 0.5f, out_mat);
+        }
+        tick("OpenCV - no convert");
+        cv::imshow("out", out_mat);
+        cv::waitKey(1000);
     }
     printf("finished.\n");
 

@@ -25,12 +25,11 @@ else()
 endif()
 target_include_directories(Halide INTERFACE ${HALIDE_DISTRIB_DIR}/tools)
 
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/rgb.png ${CMAKE_CURRENT_BINARY_DIR}/rgb.png COPYONLY)
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/gray.png ${CMAKE_CURRENT_BINARY_DIR}/gray.png COPYONLY)
+link_libraries(Halide ${OpenCV_LIBS})
+include_directories(${HALIDE_INCLUDE_DIR} ${HALIDE_TOOLS_DIR})
 
 add_executable(halide_test_opencv test.cpp)
-target_link_libraries(halide_test_opencv PUBLIC ${OpenCV_LIBS} Halide)
-target_include_directories(halide_test_opencv PUBLIC)
+add_executable(rgb_interleaved rgb_interleaved.cpp)
 
 add_executable(generator generator.cpp)
 target_link_libraries(generator PRIVATE Halide)
