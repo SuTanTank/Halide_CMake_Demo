@@ -1,67 +1,16 @@
 cmake_minimum_required(VERSION 3.14)
 project(halide_test_opencv)
+
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED YES)
+set(CMAKE_CXX_EXTENSIONS NO)
+
 find_package(OpenCV REQUIRED)
-set(HALIDE_DISTRIB_DIR "d:/cpp/halide/" CACHE PATH "path to halide distribution")
-add_library(Halide SHARED IMPORTED GLOBAL)
-if (WIN32)
-  message(STATUS "Using Shared Library: ${HALIDE_DISTRIB_DIR}/$<CONFIG>/${CMAKE_SHARED_LIBRARY_PREFIX}Halide${CMAKE_SHARED_LIBRARY_SUFFIX}")
-  set_target_properties(Halide PROPERTIES
-    INTERFACE_INCLUDE_DIRECTORIES ${HALIDE_DISTRIB_DIR}/include
-    IMPORTED_LOCATION_RELEASE ${HALIDE_DISTRIB_DIR}/Release/${CMAKE_SHARED_LIBRARY_PREFIX}Halide${CMAKE_SHARED_LIBRARY_SUFFIX}
-    IMPORTED_LOCATION_RELWITHDEBINFO ${HALIDE_DISTRIB_DIR}/Debug/${CMAKE_SHARED_LIBRARY_PREFIX}Halide${CMAKE_SHARED_LIBRARY_SUFFIX}
-    IMPORTED_LOCATION_DEBUG ${HALIDE_DISTRIB_DIR}/Debug/${CMAKE_SHARED_LIBRARY_PREFIX}Halide${CMAKE_SHARED_LIBRARY_SUFFIX}
-  )
-  set_target_properties(Halide PROPERTIES
-    IMPORTED_IMPLIB_RELEASE ${HALIDE_DISTRIB_DIR}/Release/${CMAKE_STATIC_LIBRARY_PREFIX}Halide${CMAKE_STATIC_LIBRARY_SUFFIX}
-    IMPORTED_IMPLIB_RELWITHDEBINFO ${HALIDE_DISTRIB_DIR}/Debug/${CMAKE_STATIC_LIBRARY_PREFIX}Halide${CMAKE_STATIC_LIBRARY_SUFFIX}
-    IMPORTED_IMPLIB_DEBUG ${HALIDE_DISTRIB_DIR}/Debug/${CMAKE_STATIC_LIBRARY_PREFIX}Halide${CMAKE_STATIC_LIBRARY_SUFFIX}
-  )
-else()
-  message(STATUS "Using Shared Library: ${HALIDE_DISTRIB_DIR}/bin/${CMAKE_SHARED_LIBRARY_PREFIX}Halide${CMAKE_SHARED_LIBRARY_SUFFIX}")
-  set_target_properties(Halide PROPERTIES
-    INTERFACE_INCLUDE_DIRECTORIES ${HALIDE_DISTRIB_DIR}/include
-    IMPORTED_LOCATION ${HALIDE_DISTRIB_DIR}/bin/${CMAKE_SHARED_LIBRARY_PREFIX}Halide${CMAKE_SHARED_LIBRARY_SUFFIX}
-  )
-endif()
-target_include_directories(Halide INTERFACE ${HALIDE_DISTRIB_DIR}/tools)
+find_package(Halide REQUIRED)
 
-link_libraries(Halide ${OpenCV_LIBS})
-include_directories(${HALIDE_INCLUDE_DIR} ${HALIDE_TOOLS_DIR})
-
-add_executable(halide_test_opencv test.cpp)
-add_executable(rgb_interleaved rgb_interleaved.cpp)
-
-add_executable(generator generator.cpp)
-target_link_libraries(generator PRIVATE Halide)
-target_include_directories(generator PRIVATE)
-
-set(output_dir ${CMAKE_CURRENT_BINARY_DIR})
-set(RUN_WITHOUT_LEAKCHECK ${CMAKE_COMMAND} -E env "ASAN_OPTIONS=detect_leaks=0")
-set (COMBINED_LIB "${output_dir}/halide_lib${CMAKE_STATIC_LIBRARY_SUFFIX}")
-if (WIN32)
-add_custom_command(TARGET generator POST_BUILD
-                    COMMAND ${RUN_WITHOUT_LEAKCHECK} $<TARGET_FILE:generator>
-                    COMMAND lib.exe /out:halide_lib.lib *.lib
-                    WORKING_DIRECTORY "${output_dir}"
-                    COMMENT "-=-=-=-=-=-=-=-=-=-=       generating stuff in ${output_dir}      -= -==-=-=--=-===" )
-elseif (ANDROID)
-
-elseif (APPLE AND NOT IOS)
-
-else()
-
-endif()
-
-# define a library use the generated lib and headers
-add_library(custom_lib INTERFACE IMPORTED)
-target_include_directories(custom_lib INTERFACE ${output_dir})
-target_link_libraries(custom_lib INTERFACE ${COMBINED_LIB})
-
-add_executable(generator_test
-generator_test.cpp)
-add_dependencies(generator_test generator)
-target_link_libraries(generator_test PRIVATE ${OpenCV_LIBS})
-target_link_libraries(generator_test PRIVATE custom_lib)
-target_include_directories(generator_test PRIVATE ${output_dir})
-
-target_include_directories(generator_test PRIVATE "${HALIDE_DISTRIB_DIR}/include")
+include("add_sub_in_folder.cmake")
+add_subdirectory_with_folder("HalideRuntime/" halide_rt)
+add_subdirectory_with_folder("Blur/" halide_blur)
+add_subdirectory_with_folder("Blur2/" halide_blur2)
+add_executable(test_Blur test_blur.cpp)
+target_link_libraries(test_Blur PUBLIC Blur ${OpenCV_LIBS})
