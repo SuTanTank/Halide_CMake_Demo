@@ -1,6 +1,5 @@
 #include "add.h"
 #include "HalideBuffer.h"
-#include "opencv2/opencv.hpp"
 
 using namespace Halide::Runtime;
 void Add(cv::Mat &img) {

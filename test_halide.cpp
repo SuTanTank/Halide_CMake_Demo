@@ -4,6 +4,7 @@
 int main() {
     auto image = cv::imread("gray.png", cv::IMREAD_GRAYSCALE);
     Add(image);
+    Blur(image);
     cv::imshow("blured", image);
     cv::waitKey();
     return 0;

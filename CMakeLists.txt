@@ -8,7 +8,7 @@ set(CMAKE_CXX_EXTENSIONS NO)
 find_package(OpenCV REQUIRED)
 find_package(Halide REQUIRED)
 
-include("add_sub_in_folder.cmake")
+include("add_sub_with_folder.cmake")
 add_subdirectory_with_folder("HalideRuntime/" halide_rt)
 add_subdirectory_with_folder("Add/" halide_add)
 add_subdirectory_with_folder("Blur/" halide_blur)
