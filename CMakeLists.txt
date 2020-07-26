@@ -1,5 +1,5 @@
-cmake_minimum_required(VERSION 3.14)
-project(halide_test_opencv)
+cmake_minimum_required(VERSION 3.6)
+project(HalideDemo)
 
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED YES)
